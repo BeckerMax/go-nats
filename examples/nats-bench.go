@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"strings"
 	"sync"
 	"time"
 
@@ -43,8 +42,8 @@ func usage() {
 var benchmark *bench.Benchmark
 
 func main() {
-	var urls = flag.String("s", nats.DefaultURL, "The nats server URLs (separated by comma)")
-	var tls = flag.Bool("tls", false, "Use TLS Secure Connection")
+	//var urls = flag.String("s", nats.DefaultURL, "The nats server URLs (separated by comma)")
+	//var tls = flag.Bool("tls", false, "Use TLS Secure Connection")
 	var numPubs = flag.Int("np", DefaultNumPubs, "Number of Concurrent Publishers")
 	var numSubs = flag.Int("ns", DefaultNumSubs, "Number of Concurrent Subscribers")
 	var numMsgs = flag.Int("n", DefaultNumMsgs, "Number of Messages to Publish")
@@ -65,12 +64,12 @@ func main() {
 	}
 
 	// Setup the option block
-	opts := nats.GetDefaultOptions()
-	opts.Servers = strings.Split(*urls, ",")
-	for i, s := range opts.Servers {
-		opts.Servers[i] = strings.Trim(s, " ")
-	}
-	opts.Secure = *tls
+	//opts := nats.GetDefaultOptions()
+	//opts.Servers = strings.Split(*urls, ",")
+	//for i, s := range opts.Servers {
+	//	opts.Servers[i] = strings.Trim(s, " ")
+	//}
+	//opts.Secure = *tls
 
 	benchmark = bench.NewBenchmark("NATS", *numSubs, *numPubs)
 
@@ -82,7 +81,7 @@ func main() {
 	// Run Subscribers first
 	startwg.Add(*numSubs)
 	for i := 0; i < *numSubs; i++ {
-		go runSubscriber(&startwg, &donewg, opts, *numMsgs, *msgSize)
+		go runSubscriber(&startwg, &donewg, *numMsgs, *msgSize)
 	}
 	startwg.Wait()
 
@@ -90,7 +89,7 @@ func main() {
 	startwg.Add(*numPubs)
 	pubCounts := bench.MsgsPerClient(*numMsgs, *numPubs)
 	for i := 0; i < *numPubs; i++ {
-		go runPublisher(&startwg, &donewg, opts, pubCounts[i], *msgSize)
+		go runPublisher(&startwg, &donewg, pubCounts[i], *msgSize)
 	}
 
 	log.Printf("Starting benchmark [msgs=%d, msgsize=%d, pubs=%d, subs=%d]\n", *numMsgs, *msgSize, *numPubs, *numSubs)
@@ -109,8 +108,10 @@ func main() {
 	}
 }
 
-func runPublisher(startwg, donewg *sync.WaitGroup, opts nats.Options, numMsgs int, msgSize int) {
-	nc, err := opts.Connect()
+func runPublisher(startwg, donewg *sync.WaitGroup, numMsgs int, msgSize int) {
+	cert := nats.ClientCert("./nats_client_cert", "./nats_client_key")
+	nc, err := nats.Connect("https://192.168.50.6:4222", cert, nats.RootCAs("./nats_client_ca"))
+	//nc, err := opts.Connect()
 	if err != nil {
 		log.Fatalf("Can't connect: %v\n", err)
 	}
@@ -135,8 +136,10 @@ func runPublisher(startwg, donewg *sync.WaitGroup, opts nats.Options, numMsgs in
 	donewg.Done()
 }
 
-func runSubscriber(startwg, donewg *sync.WaitGroup, opts nats.Options, numMsgs int, msgSize int) {
-	nc, err := opts.Connect()
+func runSubscriber(startwg, donewg *sync.WaitGroup, numMsgs int, msgSize int) {
+	cert := nats.ClientCert("./nats_client_cert", "./nats_client_key")
+	nc, err := nats.Connect("https://192.168.50.6:4222", cert, nats.RootCAs("./nats_client_ca"))
+	//nc, err := opts.Connect()
 	if err != nil {
 		log.Fatalf("Can't connect: %v\n", err)
 	}
